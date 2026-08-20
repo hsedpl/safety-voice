@@ -1,169 +1,447 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>Safety Voice</title>
 
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- MQTT.js -->
+    <script src="https://unpkg.com/mqtt@5.15.2/dist/mqtt.min.js"></script>
 
     <style>
+
+        /* =====================================================
+           RESET
+        ===================================================== */
+
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: #f5f6f8;
-            color: #202124;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background: #f4f6f8;
+            color: #1f2937;
+
             min-height: 100vh;
         }
 
-        /* =========================
+        button,
+        input {
+            font-family: inherit;
+        }
+
+
+        /* =====================================================
            HEADER
-        ========================= */
+        ===================================================== */
 
         header {
-            background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 17px 16px;
+            height: 64px;
+
+            background: #111827;
+            color: white;
+
+            display: flex;
+            align-items: center;
+
+            padding: 0 16px;
+
             position: sticky;
             top: 0;
-            z-index: 10;
+
+            z-index: 100;
         }
 
-        .header-row {
-            max-width: 700px;
-            margin: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
+        .menu-button {
+            width: 42px;
+            height: 42px;
 
-        .title h1 {
+            border: none;
+            border-radius: 9px;
+
+            background: #1f2937;
+            color: white;
+
             font-size: 21px;
+
+            cursor: pointer;
+
+            margin-right: 12px;
+        }
+
+        .menu-button:active {
+            transform: scale(.95);
+        }
+
+        .header-title {
+            flex: 1;
+        }
+
+        .header-title h1 {
+            font-size: 19px;
             font-weight: 700;
         }
 
-        .title p {
-            margin-top: 4px;
-            color: #6b7280;
-            font-size: 12px;
+        .header-title p {
+            font-size: 11px;
+            color: #9ca3af;
+
+            margin-top: 3px;
         }
 
-        /* =========================
-           MQTT STATUS
-        ========================= */
 
-        .status {
+        /* =====================================================
+           MQTT STATUS
+        ===================================================== */
+
+        .mqtt-status {
             display: flex;
             align-items: center;
-            gap: 7px;
-            padding: 7px 10px;
-            border-radius: 20px;
-            background: #f3f4f6;
-            color: #6b7280;
+
+            gap: 6px;
+
             font-size: 11px;
-            font-weight: 600;
-            white-space: nowrap;
+            font-weight: bold;
+
+            color: #d1d5db;
         }
 
-        .dot {
-            width: 8px;
-            height: 8px;
+        .status-dot {
+            width: 9px;
+            height: 9px;
+
             border-radius: 50%;
-            background: #9ca3af;
-        }
 
-        .status.connected {
-            background: #ecfdf5;
-            color: #047857;
-        }
-
-        .status.connected .dot {
-            background: #10b981;
-        }
-
-        .status.connecting {
-            background: #fffbeb;
-            color: #b45309;
-        }
-
-        .status.connecting .dot {
-            background: #f59e0b;
-        }
-
-        .status.error {
-            background: #fef2f2;
-            color: #b91c1c;
-        }
-
-        .status.error .dot {
             background: #ef4444;
         }
 
-        /* =========================
+        .mqtt-status.connected .status-dot {
+            background: #22c55e;
+        }
+
+        .mqtt-status.connecting .status-dot {
+            background: #f59e0b;
+        }
+
+
+        /* =====================================================
+           SIDEBAR OVERLAY
+        ===================================================== */
+
+        .overlay {
+            position: fixed;
+
+            inset: 0;
+
+            background: rgba(0,0,0,.35);
+
+            z-index: 200;
+
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
+
+        /* =====================================================
+           SIDEBAR
+        ===================================================== */
+
+        .sidebar {
+            position: fixed;
+
+            top: 0;
+            left: -310px;
+
+            width: 290px;
+            height: 100vh;
+
+            background: white;
+
+            z-index: 300;
+
+            box-shadow:
+                4px 0 18px rgba(0,0,0,.15);
+
+            transition:
+                left .25s ease;
+
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-header {
+            height: 64px;
+
+            background: #111827;
+            color: white;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 16px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 17px;
+        }
+
+        .close-sidebar {
+            width: 34px;
+            height: 34px;
+
+            border: none;
+            border-radius: 8px;
+
+            background: #1f2937;
+            color: white;
+
+            font-size: 18px;
+
+            cursor: pointer;
+        }
+
+        .sidebar-content {
+            padding: 18px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section-title {
+            font-size: 12px;
+
+            font-weight: bold;
+
+            color: #6b7280;
+
+            text-transform: uppercase;
+
+            margin-bottom: 12px;
+        }
+
+
+        /* =====================================================
+           TIMER
+        ===================================================== */
+
+        .timer-card {
+            border: 1px solid #e5e7eb;
+
+            border-radius: 12px;
+
+            padding: 15px;
+
+            background: #f9fafb;
+        }
+
+        .timer-title {
+            font-size: 15px;
+
+            font-weight: bold;
+
+            margin-bottom: 4px;
+        }
+
+        .timer-description {
+            font-size: 11px;
+
+            color: #6b7280;
+
+            line-height: 1.5;
+
+            margin-bottom: 15px;
+        }
+
+        .time-input {
+            width: 100%;
+
+            height: 48px;
+
+            border: 1px solid #d1d5db;
+
+            border-radius: 9px;
+
+            background: white;
+
+            padding: 0 12px;
+
+            font-size: 20px;
+
+            font-weight: bold;
+
+            text-align: center;
+
+            color: #111827;
+
+            outline: none;
+        }
+
+        .time-input:focus {
+            border-color: #374151;
+        }
+
+        .timer-buttons {
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 8px;
+
+            margin-top: 10px;
+        }
+
+        .timer-button {
+            border: none;
+
+            border-radius: 8px;
+
+            padding: 11px 6px;
+
+            font-size: 12px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .timer-save {
+            background: #111827;
+            color: white;
+        }
+
+        .timer-clear {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .timer-button:active {
+            transform: scale(.97);
+        }
+
+        .timer-status {
+            margin-top: 12px;
+
+            padding: 10px;
+
+            border-radius: 8px;
+
+            background: #ecfdf5;
+
+            color: #166534;
+
+            font-size: 11px;
+
+            line-height: 1.5;
+
+            display: none;
+        }
+
+        .timer-status.active {
+            display: block;
+        }
+
+        .timer-status.disabled {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+
+        /* =====================================================
+           CONNECTION INFO
+        ===================================================== */
+
+        .connection-info {
+            font-size: 11px;
+
+            color: #6b7280;
+
+            line-height: 1.8;
+        }
+
+        .connection-info strong {
+            color: #374151;
+        }
+
+
+        /* =====================================================
            MAIN
-        ========================= */
+        ===================================================== */
 
         main {
             width: 100%;
             max-width: 700px;
+
             margin: auto;
+
             padding: 20px 14px 30px;
         }
 
-        /* =========================
-           CONNECTION
-        ========================= */
 
-        .connection-card {
-            background: #ffffff;
+        /* =====================================================
+           MAIN STATUS CARD
+        ===================================================== */
+
+        .status-card {
+            background: white;
+
             border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
+
+            border-radius: 13px;
+
+            padding: 16px;
+
+            margin-bottom: 18px;
         }
 
-        .connection-title {
-            font-size: 13px;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .connection-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            padding: 7px 0;
-            border-bottom: 1px solid #f1f1f1;
+        .status-card-title {
             font-size: 12px;
+
+            color: #6b7280;
+
+            margin-bottom: 7px;
         }
 
-        .connection-row:last-child {
-            border-bottom: none;
+        .status-card-value {
+            font-size: 16px;
+
+            font-weight: bold;
+
+            color: #111827;
         }
 
-        .connection-label {
+        .current-time {
+            margin-top: 5px;
+
+            font-size: 12px;
+
             color: #6b7280;
         }
 
-        .connection-value {
-            font-weight: 600;
-            text-align: right;
-            word-break: break-all;
-        }
 
-        /* =========================
-           SECTION TITLE
-        ========================= */
+        /* =====================================================
+           SECTION
+        ===================================================== */
 
         .section-title {
-            margin-bottom: 13px;
+            margin-bottom: 12px;
         }
 
         .section-title h2 {
@@ -171,68 +449,85 @@
         }
 
         .section-title p {
-            color: #6b7280;
-            font-size: 12px;
             margin-top: 4px;
+
+            font-size: 11px;
+
+            color: #6b7280;
         }
 
-        /* =========================
+
+        /* =====================================================
            ALARM GRID
-        ========================= */
+        ===================================================== */
 
         .alarm-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 10px;
         }
 
-        /* =========================
-           ALARM BUTTON
-        ========================= */
+        .alarm-card {
+            background: white;
 
-        .alarm {
-            border: none;
-            border-radius: 14px;
-            min-height: 125px;
-            padding: 16px;
-            color: white;
-            cursor: pointer;
-            text-align: left;
-            transition:
-                transform 0.1s,
-                opacity 0.1s;
-        }
+            border: 1px solid #e5e7eb;
 
-        .alarm:active {
-            transform: scale(0.97);
-        }
+            border-radius: 12px;
 
-        .alarm:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
+            padding: 14px 10px;
 
-        .alarm-number {
-            font-size: 10px;
-            opacity: 0.8;
-            margin-bottom: 8px;
-            font-weight: 700;
+            text-align: center;
         }
 
         .alarm-icon {
-            font-size: 27px;
-            margin-bottom: 8px;
+            font-size: 28px;
+
+            margin-bottom: 7px;
         }
 
-        .alarm-name {
-            font-size: 15px;
-            font-weight: 700;
+        .alarm-card h3 {
+            font-size: 14px;
+
+            margin-bottom: 4px;
         }
 
         .alarm-file {
-            margin-top: 4px;
+            font-size: 9px;
+
+            color: #9ca3af;
+
+            margin-bottom: 12px;
+        }
+
+        .alarm-button {
+            width: 100%;
+
+            border: none;
+
+            border-radius: 8px;
+
+            padding: 10px 5px;
+
+            color: white;
+
             font-size: 10px;
-            opacity: 0.8;
+
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .alarm-button:active {
+            transform: scale(.96);
+        }
+
+        .alarm-button:disabled {
+            opacity: .45;
+
+            cursor: not-allowed;
         }
 
         .alarm1 {
@@ -247,907 +542,1569 @@
             background: #ca8a04;
         }
 
-        /* =========================
-           STOP
-        ========================= */
 
-        .stop {
+        /* =====================================================
+           STOP
+        ===================================================== */
+
+        .stop-container {
+            margin-top: 14px;
+        }
+
+        .stop-button {
             width: 100%;
-            margin-top: 12px;
-            border: 1px solid #d1d5db;
-            background: #ffffff;
-            color: #202124;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 14px;
-            font-weight: 700;
+
+            border: none;
+
+            border-radius: 10px;
+
+            padding: 13px;
+
+            background: #111827;
+
+            color: white;
+
+            font-size: 12px;
+
+            font-weight: bold;
+
             cursor: pointer;
         }
 
-        .stop:active {
-            transform: scale(0.98);
+        .stop-button:active {
+            transform: scale(.98);
         }
 
-        .stop:disabled {
-            opacity: 0.4;
+        .stop-button:disabled {
+            opacity: .45;
+
             cursor: not-allowed;
         }
 
-        /* =========================
-           CURRENT AUDIO
-        ========================= */
 
-        .current {
-            background: #ffffff;
+        /* =====================================================
+           TIMER QUICK INFO
+        ===================================================== */
+
+        .quick-timer {
+            background: white;
+
             border: 1px solid #e5e7eb;
+
             border-radius: 12px;
+
             padding: 14px;
-            margin-top: 18px;
+
+            margin-top: 14px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 10px;
         }
 
-        .current-label {
-            color: #6b7280;
+        .quick-timer-left {
+            min-width: 0;
+        }
+
+        .quick-timer-title {
+            font-size: 12px;
+
+            font-weight: bold;
+        }
+
+        .quick-timer-value {
             font-size: 11px;
+
+            color: #6b7280;
+
+            margin-top: 3px;
         }
 
-        .current-value {
-            margin-top: 5px;
-            font-size: 15px;
-            font-weight: 700;
+        .timer-indicator {
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #9ca3af;
+
+            flex-shrink: 0;
         }
 
-        /* =========================
+        .timer-indicator.active {
+            background: #22c55e;
+        }
+
+
+        /* =====================================================
            LOG
-        ========================= */
+        ===================================================== */
 
         .log-card {
-            margin-top: 18px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
+            margin-top: 14px;
+
+            background: #111827;
+
             border-radius: 12px;
+
             padding: 14px;
         }
 
         .log-title {
-            font-size: 13px;
-            font-weight: 700;
-            margin-bottom: 10px;
+            color: white;
+
+            font-size: 12px;
+
+            font-weight: bold;
+
+            margin-bottom: 8px;
         }
 
         #log {
-            height: 130px;
+            height: 120px;
+
             overflow-y: auto;
-            background: #f8fafc;
-            border-radius: 8px;
+
+            background: #030712;
+
+            border-radius: 7px;
+
             padding: 9px;
-            font-family: Consolas, monospace;
-            font-size: 10px;
+
+            font-family:
+                Consolas,
+                monospace;
+
+            font-size: 9px;
+
             line-height: 1.7;
         }
 
-        .success {
-            color: #047857;
+        .log-info {
+            color: #93c5fd;
         }
 
-        .error {
-            color: #b91c1c;
+        .log-success {
+            color: #86efac;
         }
 
-        .warning {
-            color: #b45309;
+        .log-warning {
+            color: #fde68a;
         }
 
-        .info-log {
-            color: #2563eb;
+        .log-error {
+            color: #fca5a5;
         }
 
-        /* =========================
+
+        /* =====================================================
            FOOTER
-        ========================= */
+        ===================================================== */
 
         footer {
             text-align: center;
+
+            padding: 15px;
+
+            font-size: 9px;
+
             color: #9ca3af;
-            font-size: 10px;
-            padding: 10px 0 20px;
         }
 
-        /* =========================
-           MOBILE
-        ========================= */
 
-        @media (max-width: 700px) {
-
-            /*
-             * MQTT CONNECTION DISEMBUNYIKAN
-             * PADA HP
-             */
-
-            .connection-card {
-                display: none;
-            }
-
-            main {
-                padding-top: 18px;
-            }
-        }
-
-        /* =========================
+        /* =====================================================
            DESKTOP
-        ========================= */
+        ===================================================== */
 
         @media (min-width: 701px) {
 
             .alarm-grid {
-                grid-template-columns: repeat(3, 1fr);
+                gap: 15px;
             }
 
-            .alarm3 {
-                grid-column: auto;
+            .alarm-card {
+                padding: 20px 15px;
+            }
+
+            .alarm-icon {
+                font-size: 38px;
+            }
+
+            .alarm-card h3 {
+                font-size: 16px;
+            }
+
+            .alarm-button {
+                font-size: 12px;
             }
         }
 
-        /* =========================
+
+        /* =====================================================
            SMALL PHONE
-        ========================= */
+        ===================================================== */
 
         @media (max-width: 380px) {
 
+            header {
+                height: 58px;
+            }
+
+            .header-title h1 {
+                font-size: 16px;
+            }
+
+            .header-title p {
+                font-size: 9px;
+            }
+
+            .mqtt-status {
+                font-size: 9px;
+            }
+
             main {
-                padding-left: 10px;
-                padding-right: 10px;
+                padding:
+                    14px 10px 25px;
             }
 
-            .alarm {
-                min-height: 112px;
-                padding: 14px;
+            .alarm-grid {
+                gap: 7px;
             }
 
-            .alarm-name {
-                font-size: 14px;
+            .alarm-card {
+                padding:
+                    12px 7px;
             }
 
-            .title h1 {
-                font-size: 19px;
+            .alarm-icon {
+                font-size: 25px;
             }
 
-            .status {
-                font-size: 10px;
+            .alarm-card h3 {
+                font-size: 12px;
+            }
+
+            .alarm-file {
+                font-size: 8px;
+            }
+
+            .alarm-button {
+                padding: 9px 3px;
+
+                font-size: 9px;
             }
         }
+
     </style>
 </head>
 
+
 <body>
 
-<!-- =========================
-     HEADER
-========================= -->
 
-<header>
+    <!-- =====================================================
+         SIDEBAR OVERLAY
+    ===================================================== -->
 
-    <div class="header-row">
+    <div
+        id="overlay"
+        class="overlay"
+        onclick="closeSidebar()">
+    </div>
 
-        <div class="title">
 
-            <h1>🛡️ Safety Voice</h1>
+    <!-- =====================================================
+         SIDEBAR
+    ===================================================== -->
+
+    <aside
+        id="sidebar"
+        class="sidebar">
+
+        <div class="sidebar-header">
+
+            <h2>Pengaturan</h2>
+
+            <button
+                class="close-sidebar"
+                onclick="closeSidebar()">
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="sidebar-content">
+
+
+            <!-- TIMER ALARM 1 -->
+
+            <div class="sidebar-section">
+
+                <div class="sidebar-section-title">
+                    Timer Alarm
+                </div>
+
+
+                <div class="timer-card">
+
+                    <div class="timer-title">
+                        Alarm 1
+                    </div>
+
+                    <div class="timer-description">
+                        Atur jam otomatis untuk memutar
+                        <strong>/alarm1.wav</strong>.
+                    </div>
+
+
+                    <input
+                        type="time"
+                        id="alarmTime"
+                        class="time-input"
+                        value="07:10"
+                    >
+
+
+                    <div class="timer-buttons">
+
+                        <button
+                            class="timer-button timer-save"
+                            onclick="saveTimer()">
+                            Simpan
+                        </button>
+
+                        <button
+                            class="timer-button timer-clear"
+                            onclick="clearTimer()">
+                            Matikan
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="timerStatus"
+                        class="timer-status">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONNECTION -->
+
+            <div class="sidebar-section">
+
+                <div class="sidebar-section-title">
+                    MQTT
+                </div>
+
+
+                <div class="connection-info">
+
+                    <div>
+                        <strong>Server:</strong>
+                        192.168.80.99
+                    </div>
+
+                    <div>
+                        <strong>Port:</strong>
+                        1883
+                    </div>
+
+                    <div>
+                        <strong>Command:</strong>
+                        safetyvoice/command
+                    </div>
+
+                    <div>
+                        <strong>Status:</strong>
+                        safetyvoice/status
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         HEADER
+    ===================================================== -->
+
+    <header>
+
+        <button
+            class="menu-button"
+            onclick="openSidebar()">
+            ☰
+        </button>
+
+
+        <div class="header-title">
+
+            <h1>
+                Safety Voice
+            </h1>
 
             <p>
-                Kontrol peringatan suara
+                Kontrol Alarm
             </p>
 
         </div>
 
+
         <div
             id="mqttStatus"
-            class="status connecting"
-        >
+            class="mqtt-status connecting">
 
-            <span class="dot"></span>
+            <span class="status-dot"></span>
 
-            <span id="statusText">
+            <span id="mqttStatusText">
                 Menghubungkan
             </span>
 
         </div>
 
-    </div>
-
-</header>
+    </header>
 
 
-<!-- =========================
-     MAIN
-========================= -->
+    <!-- =====================================================
+         MAIN
+    ===================================================== -->
 
-<main>
+    <main>
 
-    <!-- =========================
-         MQTT CONNECTION
-         DESKTOP ONLY
-    ========================== -->
 
-    <div class="connection-card">
+        <!-- STATUS -->
 
-        <div class="connection-title">
-            MQTT Connection
-        </div>
+        <div class="status-card">
 
-        <div class="connection-row">
+            <div class="status-card-title">
+                Status Sistem
+            </div>
 
-            <span class="connection-label">
-                Server
-            </span>
+            <div
+                id="systemStatus"
+                class="status-card-value">
+                Menghubungkan MQTT...
+            </div>
 
-            <span class="connection-value">
-                192.168.80.99
-            </span>
-
-        </div>
-
-        <div class="connection-row">
-
-            <span class="connection-label">
-                WebSocket
-            </span>
-
-            <span class="connection-value">
-                9001
-            </span>
+            <div
+                id="currentTime"
+                class="current-time">
+                --
+            </div>
 
         </div>
 
-        <div class="connection-row">
 
-            <span class="connection-label">
-                Command
-            </span>
+        <!-- ALARM -->
 
-            <span class="connection-value">
-                safetyvoice/command
-            </span>
+        <div class="section-title">
+
+            <h2>
+                Alarm
+            </h2>
+
+            <p>
+                Pilih alarm untuk diputar.
+            </p>
 
         </div>
 
-    </div>
+
+        <div class="alarm-grid">
 
 
-    <!-- =========================
-         ALARM
-    ========================== -->
+            <!-- ALARM 1 -->
 
-    <div class="section-title">
+            <div class="alarm-card">
 
-        <h2>
-            Kontrol Alarm
-        </h2>
+                <div class="alarm-icon">
+                    🚨
+                </div>
 
-        <p>
-            Pilih suara peringatan yang ingin diputar.
-        </p>
+                <h3>
+                    Alarm 1
+                </h3>
 
-    </div>
+                <div class="alarm-file">
+                    alarm1.wav
+                </div>
 
+                <button
+                    id="btnAlarm1"
+                    class="alarm-button alarm1"
+                    onclick="sendAlarm('ALARM1')"
+                    disabled>
+                    Putar
+                </button>
 
-    <div class="alarm-grid">
-
-        <!-- ALARM 1 -->
-
-        <button
-            id="alarm1"
-            class="alarm alarm1"
-            onclick="sendCommand('ALARM1')"
-            disabled
-        >
-
-            <div class="alarm-number">
-                ALARM 01
             </div>
 
-            <div class="alarm-icon">
-                🚨
+
+            <!-- ALARM 2 -->
+
+            <div class="alarm-card">
+
+                <div class="alarm-icon">
+                    ⚠️
+                </div>
+
+                <h3>
+                    Alarm 2
+                </h3>
+
+                <div class="alarm-file">
+                    alarm2.wav
+                </div>
+
+                <button
+                    id="btnAlarm2"
+                    class="alarm-button alarm2"
+                    onclick="sendAlarm('ALARM2')"
+                    disabled>
+                    Putar
+                </button>
+
             </div>
 
-            <div class="alarm-name">
-                Alarm 1
+
+            <!-- ALARM 3 -->
+
+            <div class="alarm-card">
+
+                <div class="alarm-icon">
+                    🔔
+                </div>
+
+                <h3>
+                    Alarm 3
+                </h3>
+
+                <div class="alarm-file">
+                    alarm3.wav
+                </div>
+
+                <button
+                    id="btnAlarm3"
+                    class="alarm-button alarm3"
+                    onclick="sendAlarm('ALARM3')"
+                    disabled>
+                    Putar
+                </button>
+
             </div>
 
-            <div class="alarm-file">
-                alarm1.wav
-            </div>
-
-        </button>
-
-
-        <!-- ALARM 2 -->
-
-        <button
-            id="alarm2"
-            class="alarm alarm2"
-            onclick="sendCommand('ALARM2')"
-            disabled
-        >
-
-            <div class="alarm-number">
-                ALARM 02
-            </div>
-
-            <div class="alarm-icon">
-                ⚠️
-            </div>
-
-            <div class="alarm-name">
-                Alarm 2
-            </div>
-
-            <div class="alarm-file">
-                alarm2.wav
-            </div>
-
-        </button>
-
-
-        <!-- ALARM 3 -->
-
-        <button
-            id="alarm3"
-            class="alarm alarm3"
-            onclick="sendCommand('ALARM3')"
-            disabled
-        >
-
-            <div class="alarm-number">
-                ALARM 03
-            </div>
-
-            <div class="alarm-icon">
-                🔔
-            </div>
-
-            <div class="alarm-name">
-                Alarm 3
-            </div>
-
-            <div class="alarm-file">
-                alarm3.wav
-            </div>
-
-        </button>
-
-    </div>
-
-
-    <!-- =========================
-         STOP
-    ========================== -->
-
-    <button
-        id="stopButton"
-        class="stop"
-        onclick="sendCommand('STOP')"
-        disabled
-    >
-
-        ⏹ Hentikan Alarm
-
-    </button>
-
-
-    <!-- =========================
-         AUDIO STATUS
-    ========================== -->
-
-    <div class="current">
-
-        <div class="current-label">
-            Status Audio
         </div>
 
-        <div
-            id="audioStatus"
-            class="current-value"
-        >
-            Menunggu koneksi...
+
+        <!-- STOP -->
+
+        <div class="stop-container">
+
+            <button
+                id="btnStop"
+                class="stop-button"
+                onclick="sendStop()"
+                disabled>
+                ⏹ STOP
+            </button>
+
         </div>
 
-    </div>
 
+        <!-- TIMER STATUS -->
 
-    <!-- =========================
-         LOG
-    ========================== -->
+        <div class="quick-timer">
 
-    <div class="log-card">
+            <div class="quick-timer-left">
 
-        <div class="log-title">
-            Aktivitas
+                <div class="quick-timer-title">
+                    Timer Alarm 1
+                </div>
+
+                <div
+                    id="quickTimerValue"
+                    class="quick-timer-value">
+                    Tidak aktif
+                </div>
+
+            </div>
+
+            <div
+                id="timerIndicator"
+                class="timer-indicator">
+            </div>
+
         </div>
 
-        <div id="log"></div>
 
-    </div>
+        <!-- LOG -->
 
-</main>
+        <div class="log-card">
 
+            <div class="log-title">
+                Activity Log
+            </div>
 
-<footer>
-    Safety Voice System © 2026
-</footer>
+            <div id="log"></div>
 
+        </div>
 
-<script>
-
-    // =====================================================
-    // MQTT CONFIG
-    // =====================================================
-
-    const MQTT_HOST =
-        "192.168.80.99";
-
-    /*
-     * ESP32:
-     * MQTT TCP = 1883
-     *
-     * Dashboard:
-     * MQTT WebSocket = 9001
-     *
-     * Pastikan broker Mosquitto
-     * mengaktifkan WebSocket.
-     */
-
-    const MQTT_WS_PORT =
-        9001;
-
-    const MQTT_COMMAND_TOPIC =
-        "safetyvoice/command";
-
-    const MQTT_STATUS_TOPIC =
-        "safetyvoice/status";
+    </main>
 
 
-    // =====================================================
-    // MQTT URL
-    // =====================================================
-
-    const MQTT_URL =
-        `ws://${MQTT_HOST}:${MQTT_WS_PORT}/mqtt`;
+    <footer>
+        Safety Voice System © 2026
+    </footer>
 
 
-    // =====================================================
-    // ELEMENT
-    // =====================================================
+    <!-- =====================================================
+         JAVASCRIPT
+    ===================================================== -->
 
-    const statusBox =
-        document.getElementById(
-            "mqttStatus"
-        );
+    <script>
 
-    const statusText =
-        document.getElementById(
-            "statusText"
-        );
+        /* =====================================================
+           MQTT CONFIG
+        ===================================================== */
 
-    const audioStatus =
-        document.getElementById(
-            "audioStatus"
-        );
+        const MQTT_HOST =
+            "192.168.80.99";
 
-    const logBox =
-        document.getElementById(
-            "log"
-        );
+        const MQTT_PORT =
+            9001;
+
+        const MQTT_TOPIC =
+            "safetyvoice/command";
+
+        const MQTT_STATUS_TOPIC =
+            "safetyvoice/status";
 
 
-    const buttons = [
+        /*
+         * PENTING
+         *
+         * MQTT TCP = 1883
+         * Browser TIDAK bisa langsung menggunakan
+         * MQTT TCP 1883.
+         *
+         * Browser membutuhkan MQTT melalui WebSocket.
+         *
+         * Jika Mosquitto/server kamu menggunakan:
+         *
+         * WebSocket = 9001
+         *
+         * maka gunakan:
+         *
+         * ws://192.168.80.99:9001/mqtt
+         *
+         * Jika WebSocket kamu menggunakan port lain,
+         * ubah MQTT_PORT di atas.
+         */
 
-        document.getElementById(
-            "alarm1"
-        ),
-
-        document.getElementById(
-            "alarm2"
-        ),
-
-        document.getElementById(
-            "alarm3"
-        ),
-
-        document.getElementById(
-            "stopButton"
-        )
-
-    ];
-
-
-    // =====================================================
-    // LOG
-    // =====================================================
-
-    function addLog(
-        message,
-        type = "info-log"
-    ) {
-
-        const time =
-            new Date().toLocaleTimeString(
-                "id-ID"
-            );
-
-        const line =
-            document.createElement(
-                "div"
-            );
-
-        line.className =
-            type;
-
-        line.textContent =
-            `[${time}] ${message}`;
-
-        logBox.appendChild(
-            line
-        );
-
-        logBox.scrollTop =
-            logBox.scrollHeight;
-    }
+        const MQTT_URL =
+            `ws://${MQTT_HOST}:${MQTT_PORT}/mqtt`;
 
 
-    // =====================================================
-    // BUTTON STATE
-    // =====================================================
+        /* =====================================================
+           ELEMENT
+        ===================================================== */
 
-    function setButtons(
-        enabled
-    ) {
+        const sidebar =
+            document.getElementById("sidebar");
 
-        buttons.forEach(
-            button => {
+        const overlay =
+            document.getElementById("overlay");
 
-                button.disabled =
-                    !enabled;
+        const statusBox =
+            document.getElementById("mqttStatus");
+
+        const statusText =
+            document.getElementById("mqttStatusText");
+
+        const systemStatus =
+            document.getElementById("systemStatus");
+
+        const currentTime =
+            document.getElementById("currentTime");
+
+        const logBox =
+            document.getElementById("log");
+
+        const timerStatus =
+            document.getElementById("timerStatus");
+
+        const quickTimerValue =
+            document.getElementById("quickTimerValue");
+
+        const timerIndicator =
+            document.getElementById("timerIndicator");
+
+
+        const buttons = [
+
+            document.getElementById("btnAlarm1"),
+
+            document.getElementById("btnAlarm2"),
+
+            document.getElementById("btnAlarm3"),
+
+            document.getElementById("btnStop")
+
+        ];
+
+
+        /* =====================================================
+           SIDEBAR
+        ===================================================== */
+
+        function openSidebar() {
+
+            sidebar.classList.add("open");
+
+            overlay.classList.add("show");
+        }
+
+
+        function closeSidebar() {
+
+            sidebar.classList.remove("open");
+
+            overlay.classList.remove("show");
+        }
+
+
+        /* =====================================================
+           LOG
+        ===================================================== */
+
+        function addLog(
+            message,
+            type = "info"
+        ) {
+
+            const time =
+                new Date()
+                .toLocaleTimeString(
+                    "id-ID",
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit"
+                    }
+                );
+
+
+            const item =
+                document.createElement("div");
+
+
+            item.className =
+                "log-" + type;
+
+
+            item.textContent =
+                `[${time}] ${message}`;
+
+
+            logBox.appendChild(item);
+
+
+            while (
+                logBox.children.length > 100
+            ) {
+
+                logBox.removeChild(
+                    logBox.firstChild
+                );
 
             }
-        );
-
-    }
 
 
-    // =====================================================
-    // CONNECTION STATUS
-    // =====================================================
-
-    function setConnectionStatus(
-        state,
-        text
-    ) {
-
-        statusBox.className =
-            "status " + state;
-
-        statusText.textContent =
-            text;
-
-    }
+            logBox.scrollTop =
+                logBox.scrollHeight;
+        }
 
 
-    // =====================================================
-    // MQTT CLIENT
-    // =====================================================
+        /* =====================================================
+           BUTTON STATE
+        ===================================================== */
 
-    const client =
-        mqtt.connect(
-            MQTT_URL,
-            {
+        function setButtons(enabled) {
 
-                clean: true,
-
-                connectTimeout:
-                    10000,
-
-                reconnectPeriod:
-                    3000,
-
-                clientId:
-                    "SafetyVoice-Web-" +
-                    Math.random()
-                        .toString(16)
-                        .substring(2, 10)
-
-            }
-        );
-
-
-    // =====================================================
-    // CONNECT
-    // =====================================================
-
-    client.on(
-        "connect",
-        function () {
-
-            setConnectionStatus(
-                "connected",
-                "Terhubung"
+            buttons.forEach(
+                button => {
+                    button.disabled =
+                        !enabled;
+                }
             );
+        }
+
+
+        /* =====================================================
+           MQTT OPTIONS
+        ===================================================== */
+
+        const mqttOptions = {
+
+            clean: true,
+
+            connectTimeout: 10000,
+
+            reconnectPeriod: 3000,
+
+            clientId:
+                "SafetyVoice-Dashboard-" +
+                Math.random()
+                    .toString(16)
+                    .substring(2, 10)
+        };
+
+
+        /* =====================================================
+           MQTT CLIENT
+        ===================================================== */
+
+        let client = null;
+
+
+        function connectMQTT() {
+
+            if (
+                typeof mqtt === "undefined"
+            ) {
+
+                addLog(
+                    "❌ MQTT.js tidak berhasil dimuat.",
+                    "error"
+                );
+
+                systemStatus.textContent =
+                    "MQTT.js tidak tersedia";
+
+                return;
+            }
+
+
+            addLog(
+                "Menghubungkan ke " +
+                MQTT_URL,
+                "info"
+            );
+
+
+            client =
+                mqtt.connect(
+                    MQTT_URL,
+                    mqttOptions
+                );
+
+
+            client.on(
+                "connect",
+                onMQTTConnect
+            );
+
+
+            client.on(
+                "reconnect",
+                onMQTTReconnect
+            );
+
+
+            client.on(
+                "error",
+                onMQTTError
+            );
+
+
+            client.on(
+                "offline",
+                onMQTTOffline
+            );
+
+
+            client.on(
+                "close",
+                onMQTTClose
+            );
+
+
+            client.on(
+                "message",
+                onMQTTMessage
+            );
+        }
+
+
+        /* =====================================================
+           MQTT CONNECTED
+        ===================================================== */
+
+        function onMQTTConnect() {
+
+            statusBox.className =
+                "mqtt-status connected";
+
+            statusText.textContent =
+                "Terhubung";
+
+            systemStatus.textContent =
+                "MQTT terhubung";
 
             setButtons(true);
 
+
             addLog(
-                "MQTT terhubung",
+                "✅ MQTT terhubung",
                 "success"
             );
 
 
             client.subscribe(
                 MQTT_STATUS_TOPIC,
+                {
+                    qos: 0
+                },
                 function(error) {
 
                     if (error) {
 
                         addLog(
-                            "Subscribe status gagal",
-                            "error"
+                            "⚠️ Subscribe status gagal",
+                            "warning"
                         );
 
-                        return;
                     }
+                    else {
 
-                    addLog(
-                        "Status ESP32 aktif",
-                        "success"
-                    );
+                        addLog(
+                            "✅ Subscribe status berhasil",
+                            "success"
+                        );
 
+                    }
                 }
             );
 
-        }
-    );
 
-
-    // =====================================================
-    // RECONNECT
-    // =====================================================
-
-    client.on(
-        "reconnect",
-        function () {
-
-            setConnectionStatus(
-                "connecting",
-                "Menghubungkan"
+            addLog(
+                "Command: " +
+                MQTT_TOPIC,
+                "info"
             );
+        }
+
+
+        /* =====================================================
+           RECONNECT
+        ===================================================== */
+
+        function onMQTTReconnect() {
+
+            statusBox.className =
+                "mqtt-status connecting";
+
+            statusText.textContent =
+                "Menghubungkan";
+
+            systemStatus.textContent =
+                "Menghubungkan MQTT...";
 
             setButtons(false);
 
+
             addLog(
-                "Menghubungkan kembali...",
+                "🔄 Mencoba reconnect...",
                 "warning"
             );
-
         }
-    );
 
 
-    // =====================================================
-    // ERROR
-    // =====================================================
+        /* =====================================================
+           ERROR
+        ===================================================== */
 
-    client.on(
-        "error",
-        function(error) {
+        function onMQTTError(error) {
 
-            console.error(error);
+            statusBox.className =
+                "mqtt-status";
 
-            setConnectionStatus(
-                "error",
-                "Error"
-            );
+            statusText.textContent =
+                "Error";
+
+            systemStatus.textContent =
+                "MQTT error";
 
             setButtons(false);
 
+
             addLog(
-                "MQTT Error: " +
+                "❌ MQTT Error: " +
                 error.message,
                 "error"
             );
-
         }
-    );
 
 
-    // =====================================================
-    // OFFLINE
-    // =====================================================
+        /* =====================================================
+           OFFLINE
+        ===================================================== */
 
-    client.on(
-        "offline",
-        function() {
+        function onMQTTOffline() {
 
-            setConnectionStatus(
-                "error",
-                "Offline"
-            );
+            statusBox.className =
+                "mqtt-status";
+
+            statusText.textContent =
+                "Offline";
+
+            systemStatus.textContent =
+                "MQTT offline";
 
             setButtons(false);
 
+
             addLog(
-                "MQTT offline",
+                "⚠️ MQTT offline",
                 "warning"
             );
-
         }
-    );
 
 
-    // =====================================================
-    // CLOSE
-    // =====================================================
+        /* =====================================================
+           CLOSE
+        ===================================================== */
 
-    client.on(
-        "close",
-        function() {
+        function onMQTTClose() {
 
-            setConnectionStatus(
-                "error",
-                "Terputus"
-            );
+            statusBox.className =
+                "mqtt-status";
+
+            statusText.textContent =
+                "Terputus";
+
+            systemStatus.textContent =
+                "MQTT terputus";
 
             setButtons(false);
 
+
             addLog(
-                "MQTT terputus",
+                "🔌 MQTT terputus",
                 "warning"
             );
-
-        }
-    );
-
-
-    // =====================================================
-    // SEND COMMAND
-    // =====================================================
-
-    function sendCommand(
-        command
-    ) {
-
-        if (
-            !client.connected
-        ) {
-
-            addLog(
-                "MQTT belum terhubung",
-                "error"
-            );
-
-            return;
         }
 
 
-        client.publish(
-            MQTT_COMMAND_TOPIC,
-            command,
-            {
-                qos: 0,
-                retain: false
-            },
-            function(error) {
+        /* =====================================================
+           RECEIVED MQTT
+        ===================================================== */
 
-                if (error) {
-
-                    addLog(
-                        "Gagal mengirim " +
-                        command,
-                        "error"
-                    );
-
-                    return;
-                }
-
-
-                addLog(
-                    "Perintah: " +
-                    command,
-                    "success"
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================================
-    // RECEIVE STATUS ESP32
-    // =====================================================
-
-    client.on(
-        "message",
-        function(
+        function onMQTTMessage(
             topic,
             message
         ) {
-
-            if (
-                topic !==
-                MQTT_STATUS_TOPIC
-            ) {
-                return;
-            }
-
 
             const data =
                 message.toString();
 
 
             addLog(
-                "ESP32: " + data,
-                "info-log"
+                `📩 ${topic}: ${data}`,
+                "info"
             );
 
 
             if (
-                data === "READY"
+                topic === MQTT_STATUS_TOPIC
             ) {
 
-                audioStatus.textContent =
-                    "Siap";
+                if (
+                    data === "READY"
+                ) {
+
+                    systemStatus.textContent =
+                        "ESP32 siap";
+
+                }
+
+                else if (
+                    data === "PLAYING"
+                ) {
+
+                    systemStatus.textContent =
+                        "🔊 Alarm sedang diputar";
+
+                }
+
+                else if (
+                    data === "STOPPED"
+                ) {
+
+                    systemStatus.textContent =
+                        "Audio dihentikan";
+
+                }
+
+                else if (
+                    data === "FINISHED"
+                ) {
+
+                    systemStatus.textContent =
+                        "Audio selesai";
+
+                }
+
+                else if (
+                    data.startsWith("ERROR")
+                ) {
+
+                    systemStatus.textContent =
+                        data;
+
+                }
 
             }
-
-            else if (
-                data === "PLAYING"
-            ) {
-
-                audioStatus.textContent =
-                    "🔊 Sedang memutar";
-
-            }
-
-            else if (
-                data === "STOPPED"
-            ) {
-
-                audioStatus.textContent =
-                    "Berhenti";
-
-            }
-
-            else if (
-                data === "FINISHED"
-            ) {
-
-                audioStatus.textContent =
-                    "Selesai";
-
-            }
-
-            else if (
-                data.startsWith(
-                    "ERROR:"
-                )
-            ) {
-
-                audioStatus.textContent =
-                    data;
-
-            }
-
         }
-    );
 
 
-    // =====================================================
-    // INITIAL LOG
-    // =====================================================
+        /* =====================================================
+           SEND COMMAND
+        ===================================================== */
 
-    addLog(
-        "Safety Voice siap",
-        "info-log"
-    );
+        function sendCommand(
+            command
+        ) {
 
-</script>
+            if (
+                !client ||
+                !client.connected
+            ) {
+
+                addLog(
+                    "❌ MQTT belum terhubung",
+                    "error"
+                );
+
+                return false;
+            }
+
+
+            client.publish(
+                MQTT_TOPIC,
+                command,
+                {
+                    qos: 0,
+                    retain: false
+                },
+                function(error) {
+
+                    if (error) {
+
+                        addLog(
+                            "❌ Gagal mengirim: " +
+                            command,
+                            "error"
+                        );
+
+                    }
+                    else {
+
+                        addLog(
+                            "📤 Perintah: " +
+                            command,
+                            "success"
+                        );
+
+                    }
+                }
+            );
+
+
+            return true;
+        }
+
+
+        /* =====================================================
+           SEND ALARM
+        ===================================================== */
+
+        function sendAlarm(
+            command
+        ) {
+
+            sendCommand(command);
+        }
+
+
+        /* =====================================================
+           SEND STOP
+        ===================================================== */
+
+        function sendStop() {
+
+            sendCommand("STOP");
+        }
+
+
+        /* =====================================================
+           CURRENT CLOCK
+        ===================================================== */
+
+        function updateClock() {
+
+            const now =
+                new Date();
+
+
+            const time =
+                now.toLocaleTimeString(
+                    "id-ID",
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit"
+                    }
+                );
+
+
+            const date =
+                now.toLocaleDateString(
+                    "id-ID",
+                    {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric"
+                    }
+                );
+
+
+            currentTime.textContent =
+                `${date} • ${time}`;
+
+
+            checkTimer(
+                now
+            );
+        }
+
+
+        /* =====================================================
+           TIMER VARIABLES
+        ===================================================== */
+
+        let timerEnabled =
+            localStorage.getItem(
+                "safetyVoiceTimerEnabled"
+            ) === "true";
+
+
+        let timerTime =
+            localStorage.getItem(
+                "safetyVoiceTimer"
+            ) || "07:10";
+
+
+        let lastTriggeredDate =
+            localStorage.getItem(
+                "safetyVoiceLastTriggered"
+            ) || "";
+
+
+        document.getElementById(
+            "alarmTime"
+        ).value =
+            timerTime;
+
+
+        /* =====================================================
+           SAVE TIMER
+        ===================================================== */
+
+        function saveTimer() {
+
+            const input =
+                document.getElementById(
+                    "alarmTime"
+                );
+
+
+            if (
+                !input.value
+            ) {
+
+                addLog(
+                    "❌ Pilih waktu terlebih dahulu",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            timerTime =
+                input.value;
+
+
+            timerEnabled =
+                true;
+
+
+            localStorage.setItem(
+                "safetyVoiceTimer",
+                timerTime
+            );
+
+
+            localStorage.setItem(
+                "safetyVoiceTimerEnabled",
+                "true"
+            );
+
+
+            updateTimerDisplay();
+
+
+            addLog(
+                "⏰ Timer Alarm 1 disimpan: " +
+                timerTime,
+                "success"
+            );
+
+
+            closeSidebar();
+        }
+
+
+        /* =====================================================
+           CLEAR TIMER
+        ===================================================== */
+
+        function clearTimer() {
+
+            timerEnabled =
+                false;
+
+
+            localStorage.setItem(
+                "safetyVoiceTimerEnabled",
+                "false"
+            );
+
+
+            updateTimerDisplay();
+
+
+            addLog(
+                "⏹ Timer Alarm 1 dimatikan",
+                "warning"
+            );
+        }
+
+
+        /* =====================================================
+           TIMER DISPLAY
+        ===================================================== */
+
+        function updateTimerDisplay() {
+
+            if (
+                timerEnabled
+            ) {
+
+                quickTimerValue.textContent =
+                    `Aktif • setiap hari ${timerTime}`;
+
+                timerIndicator.classList.add(
+                    "active"
+                );
+
+
+                timerStatus.className =
+                    "timer-status active";
+
+
+                timerStatus.innerHTML =
+                    `⏰ Aktif<br>
+                     Alarm 1 akan diputar setiap hari
+                     pada <strong>${timerTime}</strong>.`;
+
+            }
+
+            else {
+
+                quickTimerValue.textContent =
+                    "Tidak aktif";
+
+                timerIndicator.classList.remove(
+                    "active"
+                );
+
+
+                timerStatus.className =
+                    "timer-status active disabled";
+
+
+                timerStatus.innerHTML =
+                    "Timer Alarm 1 tidak aktif.";
+            }
+        }
+
+
+        /* =====================================================
+           CHECK TIMER
+        ===================================================== */
+
+        function checkTimer(
+            now
+        ) {
+
+            if (
+                !timerEnabled
+            ) {
+                return;
+            }
+
+
+            const hours =
+                String(
+                    now.getHours()
+                ).padStart(
+                    2,
+                    "0"
+                );
+
+
+            const minutes =
+                String(
+                    now.getMinutes()
+                ).padStart(
+                    2,
+                    "0"
+                );
+
+
+            const current =
+                `${hours}:${minutes}`;
+
+
+            const dateKey =
+                `${now.getFullYear()}-` +
+                `${now.getMonth() + 1}-` +
+                `${now.getDate()}`;
+
+
+            /*
+             * Cegah alarm dikirim berkali-kali
+             * pada menit yang sama.
+             */
+
+            if (
+                current === timerTime &&
+                lastTriggeredDate !== dateKey
+            ) {
+
+                lastTriggeredDate =
+                    dateKey;
+
+
+                localStorage.setItem(
+                    "safetyVoiceLastTriggered",
+                    dateKey
+                );
+
+
+                triggerAutomaticAlarm();
+            }
+        }
+
+
+        /* =====================================================
+           AUTOMATIC ALARM 1
+        ===================================================== */
+
+        function triggerAutomaticAlarm() {
+
+            addLog(
+                "⏰ WAKTU TIMER TERCAPAI",
+                "warning"
+            );
+
+
+            addLog(
+                "🔊 Otomatis memutar ALARM1",
+                "success"
+            );
+
+
+            systemStatus.textContent =
+                "⏰ Timer → Alarm 1";
+
+
+            sendCommand(
+                "ALARM1"
+            );
+        }
+
+
+        /* =====================================================
+           START
+        ===================================================== */
+
+        updateTimerDisplay();
+
+
+        updateClock();
+
+
+        setInterval(
+            updateClock,
+            1000
+        );
+
+
+        addLog(
+            "Safety Voice Dashboard siap.",
+            "info"
+        );
+
+
+        addLog(
+            "Timer Alarm 1: " +
+            (
+                timerEnabled
+                    ? timerTime
+                    : "OFF"
+            ),
+            "info"
+        );
+
+
+        /*
+         * Tunggu MQTT.js sebentar supaya
+         * script CDN selesai dimuat.
+         */
+
+        setTimeout(
+            connectMQTT,
+            500
+        );
+
+    </script>
 
 </body>
+
 </html>
